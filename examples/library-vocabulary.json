@@ -1,0 +1,27 @@
+
+{
+  "actors": [
+    "student",
+    "librarian",
+    "guest"
+  ],
+  "entities": [
+    "book",
+    "category"
+  ],
+  "verbs": [
+    "borrow",
+    "manage",
+    "register"
+  ],
+  "aliases": {
+    "library member": "student"
+  },
+  "plurals": {
+    "books": "book",
+    "categories": "category"
+  },
+  "verbForms": {
+    "manages": "manage"
+  }
+}
