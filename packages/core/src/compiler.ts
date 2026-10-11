@@ -114,7 +114,9 @@ export function createCompiler(): Compiler {
       const model = buildModel(semantic);
 
       // Stage 5 — Model validation
-      diagnostics.push(...validateModel(model));
+       diagnostics.push(
+        ...validateModel(model, { source })
+      );
 
       const ok = !diagnostics.some(
         diagnostic =>

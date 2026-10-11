@@ -113,3 +113,28 @@ describe("HumanUML Public Compiler", () => {
     expect(first).toEqual(second);
   });
 });
+
+it("rejects circular inheritance through the compiler", () => {
+  const inheritanceVocabulary = createVocabulary({
+    actors: [],
+    entities: ["manager", "employee", "supervisor"],
+    verbs: []
+  });
+
+  const result = compiler.compile(
+    "A manager is a type of employee. " +
+    "An employee is a type of supervisor. " +
+    "A supervisor is a type of manager.",
+    { vocabulary: inheritanceVocabulary }
+  );
+
+  expect(result.ok).toBe(false);
+
+  expect(
+    result.diagnostics.some(
+      d => d.code === "HU-SEM-005"
+    )
+  ).toBe(true);
+
+  expect(result.model).toBeUndefined();
+});
