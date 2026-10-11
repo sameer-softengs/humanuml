@@ -270,16 +270,31 @@ export function parse(
     sentenceTokens = [];
   }
 
-  for (const token of tokens) {
-    if (
-      token.kind === "punctuation" &&
-      token.normalized === "."
-    ) {
-      processSentence();
+ 
+for (const token of tokens) {
+  if (
+    token.kind === "punctuation" &&
+    token.normalized === "."
+  ) {
+    // Reject consecutive periods and empty sentences.
+    if (sentenceTokens.length === 0) {
+      diagnostics.push({
+        code: "HU-SYN-003",
+        severity: "error",
+        message: "Empty sentence is not allowed.",
+        span: token.span
+      });
     } else {
-      sentenceTokens.push(token);
+      // Parse the completed sentence.
+      processSentence();
     }
+  } else {
+    // CRITICAL:
+    // Preserve all non-terminator tokens.
+    sentenceTokens.push(token);
   }
+}
+
 
   // Do not silently accept unterminated sentences.
   if (sentenceTokens.length > 0) {

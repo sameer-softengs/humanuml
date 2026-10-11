@@ -81,3 +81,13 @@ describe("HumanUML Vocabulary Registry", () => {
     expect(first).toEqual(second);
   });
 });
+
+it("rejects reserved grammar keywords", () => {
+  expect(() =>
+    createVocabulary({
+      actors: ["can"],
+      entities: [],
+      verbs: []
+    })
+  ).toThrow("Reserved grammar keyword");
+});

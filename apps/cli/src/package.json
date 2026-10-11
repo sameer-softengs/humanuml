@@ -4,5 +4,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "HumanUML command-line interface"
+  "description": "HumanUML command-line compiler",
+  "bin": {
+    "humanuml": "./dist/index.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=24"
+  }
 }

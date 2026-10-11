@@ -1,4 +1,17 @@
 
+const RESERVED_TERMS = new Set([
+  "a",
+  "an",
+  "the",
+  "can",
+  "may",
+  "must",
+  "cannot",
+  "belongs to",
+  "contains",
+  "is a type of"
+]);
+
 import type {
   VocabularyConfig,
   VocabularyKind,
@@ -25,6 +38,12 @@ export function createVocabulary(
 
     if (!key || !target) {
       throw new Error("Vocabulary entries cannot be empty.");
+    }
+    
+    if (RESERVED_TERMS.has(key)) {
+    throw new Error(
+     `Reserved grammar keyword cannot be registered: "${key}".`
+      );
     }
 
     const existing = entries.get(key);

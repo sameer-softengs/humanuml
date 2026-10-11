@@ -1,0 +1,6 @@
+A customer can place orders.
+An administrator may approve orders.
+An administrator manages products.
+An order contains products.
+A guest cannot approve orders.
+A customer must register.

@@ -1,0 +1,28 @@
+
+{
+  "actors": [
+    "customer",
+    "administrator",
+    "guest"
+  ],
+  "entities": [
+    "order",
+    "product"
+  ],
+  "verbs": [
+    "place",
+    "approve",
+    "manage",
+    "register"
+  ],
+  "aliases": {
+    "admin": "administrator"
+  },
+  "plurals": {
+    "orders": "order",
+    "products": "product"
+  },
+  "verbForms": {
+    "manages": "manage"
+  }
+}
