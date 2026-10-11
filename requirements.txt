@@ -1,0 +1,4 @@
+A student can borrow books.
+A librarian manages books.
+A book belongs to a category.
+A student must register.

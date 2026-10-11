@@ -4,6 +4,7 @@ export interface CliOptions {
   output: string;
   vocabulary: string;
   strict: boolean;
+  force: boolean;
 }
 
 export type CliArgs =
@@ -37,7 +38,8 @@ export function parseArgs(args: string[]): CliArgs {
     input,
     output: "model.json",
     vocabulary: "examples/library-vocabulary.json",
-    strict: true
+    strict: true,
+    force: false
   };
 
   const seen = new Set<string>();
@@ -60,7 +62,10 @@ export function parseArgs(args: string[]): CliArgs {
       options.strict = false;
       continue;
     }
-
+    if (arg === "--force") {
+      options.force = true;
+      continue;
+    }
     if (arg === "--output" || arg === "--vocabulary") {
       const value = args[++i];
 

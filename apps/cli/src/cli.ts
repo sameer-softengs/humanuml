@@ -1,15 +1,24 @@
 
-import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { createCompiler } from
-  "../../../packages/core/src/index.js";
+import {
+  readLimitedFile,
+  writeOutputSafely,
+  MAX_REQUIREMENTS_BYTES,
+  MAX_VOCABULARY_BYTES
+} from "./file-safety.js";
 
-import { createVocabulary } from
-  "../../../packages/vocabulary/src/index.js";
+import {
+  createCompiler
+} from "../../../packages/core/src/index.js";
 
-import type { VocabularyConfig } from
-  "../../../packages/vocabulary/src/types.js";
+import {
+  createVocabulary
+} from "../../../packages/vocabulary/src/index.js";
+
+import type {
+  VocabularyConfig
+} from "../../../packages/vocabulary/src/types.js";
 
 import { parseArgs } from "./args.js";
 
@@ -24,11 +33,18 @@ Options:
   --vocabulary <file>   Vocabulary JSON path
   --strict              Reject incomplete models (default)
   --partial             Export valid partial results
+  --force               Allow overwriting existing output
   --help, -h            Show this help
+
+File limits:
+  Requirements           5 MB maximum
+  Vocabulary             1 MB maximum
 
 Examples:
   humanuml compile examples/library-system.txt
   humanuml compile requirements.txt --output model.json
+  humanuml compile requirements.txt --output model.json --force
+  humanuml compile requirements.txt --partial
 `;
 
 function isVocabularyConfig(
@@ -36,36 +52,67 @@ function isVocabularyConfig(
 ): value is VocabularyConfig {
   if (
     typeof value !== "object" ||
-    value === null
+    value === null ||
+    Array.isArray(value)
   ) {
     return false;
   }
 
   const record = value as Record<string, unknown>;
 
-  return ["actors", "entities", "verbs"].every(key =>
-    Array.isArray(record[key]) &&
-    (record[key] as unknown[]).every(
-      item => typeof item === "string"
-    )
-  ) && ["aliases", "plurals", "verbForms"].every(
+  const requiredFields = [
+    "actors",
+    "entities",
+    "verbs"
+  ];
+
+  const validRequiredFields = requiredFields.every(
     key =>
-      record[key] === undefined ||
-      (
-        typeof record[key] === "object" &&
-        record[key] !== null &&
-        !Array.isArray(record[key]) &&
-        Object.values(record[key]).every(
-          item => typeof item === "string"
-        )
+      Array.isArray(record[key]) &&
+      (record[key] as unknown[]).every(
+        item => typeof item === "string"
       )
   );
+
+  if (!validRequiredFields) {
+    return false;
+  }
+
+  const optionalFields = [
+    "aliases",
+    "plurals",
+    "verbForms"
+  ];
+
+  return optionalFields.every(key => {
+    const field = record[key];
+
+    if (field === undefined) {
+      return true;
+    }
+
+    if (
+      typeof field !== "object" ||
+      field === null ||
+      Array.isArray(field)
+    ) {
+      return false;
+    }
+
+    return Object.values(field).every(
+      item => typeof item === "string"
+    );
+  });
 }
 
 export async function runCli(
   args: string[]
 ): Promise<number> {
   try {
+    // ----------------------------------------
+    // 1. Parse command-line arguments
+    // ----------------------------------------
+
     const command = parseArgs(args);
 
     if (command.kind === "help") {
@@ -75,53 +122,96 @@ export async function runCli(
 
     const options = command.options;
 
+    // ----------------------------------------
+    // 2. Resolve file paths
+    // ----------------------------------------
+
     const inputPath = resolve(options.input);
     const outputPath = resolve(options.output);
-    const vocabularyPath = resolve(options.vocabulary);
+    const vocabularyPath = resolve(
+      options.vocabulary
+    );
 
-    if (
-      outputPath === inputPath ||
-      outputPath === vocabularyPath
-    ) {
-      throw new Error(
-        "Output path must differ from input and vocabulary files."
-      );
-    }
+    // ----------------------------------------
+    // 3. Read files with size limits
+    // ----------------------------------------
 
-    const [source, vocabularyText] = await Promise.all([
-      readFile(inputPath, "utf8"),
-      readFile(vocabularyPath, "utf8")
+    const [
+      source,
+      vocabularyText
+    ] = await Promise.all([
+      readLimitedFile(
+        inputPath,
+        MAX_REQUIREMENTS_BYTES
+      ),
+      readLimitedFile(
+        vocabularyPath,
+        MAX_VOCABULARY_BYTES
+      )
     ]);
 
-    const rawVocabulary: unknown =
-      JSON.parse(vocabularyText);
+    // ----------------------------------------
+    // 4. Parse and validate vocabulary
+    // ----------------------------------------
+
+    let rawVocabulary: unknown;
+
+    try {
+      rawVocabulary = JSON.parse(
+        vocabularyText
+      ) as unknown;
+    } catch {
+      throw new Error(
+        "Vocabulary file contains invalid JSON."
+      );
+    }
 
     if (!isVocabularyConfig(rawVocabulary)) {
       throw new Error(
-        "Invalid vocabulary configuration."
+        "Invalid vocabulary configuration. " +
+        "Expected arrays for actors, entities, and verbs."
       );
     }
 
-    const vocabulary = createVocabulary(rawVocabulary);
+    const vocabulary = createVocabulary(
+      rawVocabulary
+    );
+
+    // ----------------------------------------
+    // 5. Compile requirements
+    // ----------------------------------------
+
     const compiler = createCompiler();
 
-    const result = compiler.compile(source, {
-      vocabulary,
-      strict: options.strict,
-      grammarVersion: "CE-1"
-    });
+    const result = compiler.compile(
+      source,
+      {
+        vocabulary,
+        strict: options.strict,
+        grammarVersion: "CE-1"
+      }
+    );
+
+    // ----------------------------------------
+    // 6. Print compiler diagnostics
+    // ----------------------------------------
 
     for (const diagnostic of result.diagnostics) {
       const location = diagnostic.span
         ? ` [${diagnostic.span.start}:${diagnostic.span.end}]`
         : "";
 
-      console.error(
+      const message =
         `${diagnostic.severity.toUpperCase()} ` +
         `${diagnostic.code}${location}: ` +
-        diagnostic.message
-      );
+        diagnostic.message;
+
+      console.error(message);
     }
+
+    // ----------------------------------------
+    // 7. Safely export the generated HRM
+    // ----------------------------------------
 
     if (result.model) {
       const json = JSON.stringify(
@@ -130,10 +220,14 @@ export async function runCli(
         2
       );
 
-      await writeFile(
+      await writeOutputSafely(
         outputPath,
         json + "\n",
-        "utf8"
+        options.force,
+        [
+          inputPath,
+          vocabularyPath
+        ]
       );
 
       console.log(
@@ -141,10 +235,15 @@ export async function runCli(
       );
     }
 
+    // ----------------------------------------
+    // 8. Return compilation status
+    // ----------------------------------------
+
     if (!result.ok) {
       console.error(
         "Compilation completed with errors."
       );
+
       return 1;
     }
 
@@ -154,11 +253,18 @@ export async function runCli(
 
     return 0;
   } catch (error: unknown) {
-    console.error(
-      "HumanUML CLI error:",
+    // ----------------------------------------
+    // 9. Handle CLI and filesystem errors
+    // ----------------------------------------
+
+    const message =
       error instanceof Error
         ? error.message
-        : String(error)
+        : String(error);
+
+    console.error(
+      "HumanUML CLI error:",
+      message
     );
 
     return 2;

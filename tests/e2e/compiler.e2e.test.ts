@@ -56,6 +56,7 @@ async function createFixture(
   );
 
   await writeFile(input, text, "utf8");
+
   await writeFile(
     vocabularyPath,
     JSON.stringify(vocabulary),
@@ -70,9 +71,12 @@ async function createFixture(
   };
 }
 
+type Fixture = Awaited<ReturnType<typeof createFixture>>;
+
 async function execute(
-  fixture: Awaited<ReturnType<typeof createFixture>>,
-  partial = false
+  fixture: Fixture,
+  partial = false,
+  force = false
 ) {
   const logs: string[] = [];
   const errors: string[] = [];
@@ -97,7 +101,8 @@ async function execute(
       fixture.output,
       "--vocabulary",
       fixture.vocabularyPath,
-      ...(partial ? ["--partial"] : [])
+      ...(partial ? ["--partial"] : []),
+      ...(force ? ["--force"] : [])
     ]);
 
     return { code, logs, errors };
@@ -115,7 +120,7 @@ async function readModel(
   ) as HumanRequirementsModel;
 }
 
-async function exists(path: string) {
+async function exists(path: string): Promise<boolean> {
   try {
     await access(path);
     return true;
@@ -207,6 +212,7 @@ describe("HumanUML P1-07C E2E", () => {
 
     expect(result.code).toBe(1);
     expect(await exists(fixture.output)).toBe(false);
+
     expect(
       result.errors.some(line =>
         line.includes("HU-LEX-001")
@@ -224,6 +230,7 @@ describe("HumanUML P1-07C E2E", () => {
 
     expect(result.code).toBe(1);
     expect(await exists(fixture.output)).toBe(false);
+
     expect(
       result.errors.some(line =>
         line.includes("HU-SEM-003")
@@ -237,10 +244,7 @@ describe("HumanUML P1-07C E2E", () => {
       "A dragon can borrow books."
     );
 
-    const result = await execute(
-      fixture,
-      true
-    );
+    const result = await execute(fixture, true);
 
     expect(result.code).toBe(1);
     expect(await exists(fixture.output)).toBe(true);
@@ -283,6 +287,7 @@ describe("HumanUML P1-07C E2E", () => {
       "A student can borrow books."
     );
 
+    // First compilation: output does not exist.
     const first = await execute(fixture);
 
     expect(first.code).toBe(0);
@@ -292,7 +297,12 @@ describe("HumanUML P1-07C E2E", () => {
       "utf8"
     );
 
-    const second = await execute(fixture);
+    // Second compilation: explicitly allow overwriting.
+    const second = await execute(
+      fixture,
+      false,
+      true
+    );
 
     expect(second.code).toBe(0);
 
@@ -301,6 +311,41 @@ describe("HumanUML P1-07C E2E", () => {
       "utf8"
     );
 
+    // The generated content must remain identical.
     expect(secondJson).toBe(firstJson);
+  });
+
+  it("prevents overwriting without --force", async () => {
+    const fixture = await createFixture(
+      "A student can borrow books."
+    );
+
+    const first = await execute(fixture);
+
+    expect(first.code).toBe(0);
+
+    const originalJson = await readFile(
+      fixture.output,
+      "utf8"
+    );
+
+    // Attempt to overwrite without permission.
+    const second = await execute(fixture);
+
+    expect(second.code).toBe(2);
+
+    expect(
+      second.errors.some(line =>
+        line.includes("Output file already exists")
+      )
+    ).toBe(true);
+
+    // Existing data must remain unchanged.
+    const finalJson = await readFile(
+      fixture.output,
+      "utf8"
+    );
+
+    expect(finalJson).toBe(originalJson);
   });
 });

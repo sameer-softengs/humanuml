@@ -4,21 +4,6 @@
   "grammarVersion": "CE-1",
   "concepts": [
     {
-      "id": "concept:actor:guest",
-      "name": "guest",
-      "kind": "actor",
-      "evidence": [
-        {
-          "sentenceIndex": 4,
-          "span": {
-            "start": 114,
-            "end": 141
-          },
-          "text": "A guest cannot borrow books"
-        }
-      ]
-    },
-    {
       "id": "concept:actor:librarian",
       "name": "librarian",
       "kind": "actor",
@@ -84,14 +69,6 @@
             "end": 85
           },
           "text": "A book belongs to a category"
-        },
-        {
-          "sentenceIndex": 4,
-          "span": {
-            "start": 114,
-            "end": 141
-          },
-          "text": "A guest cannot borrow books"
         }
       ]
     },
@@ -112,23 +89,6 @@
     }
   ],
   "actions": [
-    {
-      "id": "action:concept:actor:guest:borrow:concept:entity:book:prohibited",
-      "actorId": "concept:actor:guest",
-      "verb": "borrow",
-      "modality": "prohibited",
-      "objectId": "concept:entity:book",
-      "evidence": [
-        {
-          "sentenceIndex": 4,
-          "span": {
-            "start": 114,
-            "end": 141
-          },
-          "text": "A guest cannot borrow books"
-        }
-      ]
-    },
     {
       "id": "action:concept:actor:librarian:manage:concept:entity:book:asserted",
       "actorId": "concept:actor:librarian",
