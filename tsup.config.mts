@@ -15,7 +15,10 @@ export default defineConfig([
     sourcemap: true,
     clean: true,
     splitting: false,
-    external: []
+    external: [],
+    outExtension: () => ({
+      js: ".mjs"
+    })
   },
   {
     name: "humanuml-cli",
@@ -30,6 +33,9 @@ export default defineConfig([
     dts: false,
     sourcemap: true,
     clean: true,
-    splitting: false
+    splitting: false,
+    outExtension: () => ({
+      js: ".mjs"
+    })
   }
 ]);

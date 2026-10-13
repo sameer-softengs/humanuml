@@ -20,6 +20,13 @@ export interface LexResult {
   unknown: Token[];
 }
 
+interface LexEntry {
+  word: string;
+  kind: TokenKind;
+  canonical: string;
+  pattern: RegExp;
+}
+
 const isWordChar = (char: string | undefined): boolean =>
   char !== undefined && /[\p{L}\p{N}_]/u.test(char);
 
@@ -31,7 +38,7 @@ export function tokenize(
   const unknown: Token[] = [];
 
   // Collect keywords and registered vocabulary entries.
-  const entries = [
+  const entries: Omit<LexEntry, "pattern">[] = [
     ...Object.entries(KEYWORDS).map(([word, kind]) => ({
       word,
       kind,
@@ -45,7 +52,24 @@ export function tokenize(
   ];
 
   // Longest match first for multi-word terms.
-  entries.sort((a, b) => b.word.length - a.word.length);
+  entries.sort((a, b) =>
+    b.word.length - a.word.length ||
+    a.word.localeCompare(b.word, "en")
+  );
+
+  const matchers: LexEntry[] = entries.map(entry => {
+    const escaped = entry.word
+      .split(" ")
+      .map(word =>
+        word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      )
+      .join("\\s+");
+
+    return {
+      ...entry,
+      pattern: new RegExp(`^${escaped}`, "iu")
+    };
+  });
 
   let index = 0;
 
@@ -69,16 +93,8 @@ export function tokenize(
     const remainder = input.slice(index);
     let matched = false;
 
-    for (const entry of entries) {
-      const escaped = entry.word
-        .split(" ")
-        .map(word =>
-          word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-        )
-        .join("\\s+");
-
-      const pattern = new RegExp(`^${escaped}`, "iu");
-      const match = remainder.match(pattern);
+    for (const entry of matchers) {
+      const match = remainder.match(entry.pattern);
 
       if (!match) continue;
 

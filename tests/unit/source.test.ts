@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createSourceSpan
-} from "../../packages/contracts/src/source";
+} from "../../packages/contracts/src/source.js";
 
 describe("HumanUML SourceSpan", () => {
   it("creates a valid source span", () => {

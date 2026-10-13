@@ -4,11 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   tokenize,
   parse
-} from "../../packages/language-core/src/index";
+} from "../../packages/language-core/src/index.js";
 
 import {
   createVocabulary
-} from "../../packages/vocabulary/src/index";
+} from "../../packages/vocabulary/src/index.js";
 
 const vocabulary = createVocabulary({
   actors: [

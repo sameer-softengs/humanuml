@@ -33,6 +33,10 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.27.7)(tsx@4.23.15))
 
+  apps/cli: {}
+
+  packages/core: {}
+
   packages/vocabulary: {}
 
 packages:

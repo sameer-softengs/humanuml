@@ -1,6 +1,6 @@
 
 import { describe, expect, it } from "vitest";
-import { createVocabulary } from "../../packages/vocabulary/src/index";
+import { createVocabulary } from "../../packages/vocabulary/src/index.js";
 
 const createTestRegistry = () =>
   createVocabulary({

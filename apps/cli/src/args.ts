@@ -54,11 +54,23 @@ export function parseArgs(args: string[]): CliArgs {
     seen.add(arg);
 
     if (arg === "--strict") {
+      if (!options.strict && seen.has("--partial")) {
+        throw new Error(
+          "Options --strict and --partial cannot be used together."
+        );
+      }
+
       options.strict = true;
       continue;
     }
 
     if (arg === "--partial") {
+      if (options.strict && seen.has("--strict")) {
+        throw new Error(
+          "Options --strict and --partial cannot be used together."
+        );
+      }
+
       options.strict = false;
       continue;
     }

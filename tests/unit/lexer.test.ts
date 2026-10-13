@@ -1,8 +1,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { tokenize } from "../../packages/language-core/src/index";
-import { createVocabulary } from "../../packages/vocabulary/src/index";
+import { tokenize } from "../../packages/language-core/src/index.js";
+import { createVocabulary } from "../../packages/vocabulary/src/index.js";
 
 const vocabulary = createVocabulary({
   actors: ["student", "librarian"],

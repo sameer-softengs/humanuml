@@ -1,18 +1,14 @@
-
-{
+﻿{
   "name": "@humanuml/cli",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "HumanUML command-line compiler",
+  "description": "HumanUML command-line requirements compiler",
   "bin": {
     "humanuml": "./dist/index.mjs"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist"],
   "engines": {
     "node": ">=24"
-  }
+  },
+  "license": "UNLICENSED"
 }

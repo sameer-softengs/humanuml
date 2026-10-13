@@ -1,8 +1,8 @@
 {
   "name": "humanuml",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HumanUML deterministic Controlled English requirements compiler",
  
 
   "scripts": {
@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "humanuml": "tsx apps/cli/src/index.ts",
-    "build": "tsup",
+    "build": "tsup --config tsup.config.mts",
     "build:check": "pnpm run typecheck && pnpm run test && pnpm run build",
     "humanuml:built": "node apps/cli/dist/index.mjs"
   },
@@ -20,7 +20,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.5",

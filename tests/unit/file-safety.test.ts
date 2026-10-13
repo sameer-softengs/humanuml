@@ -8,13 +8,16 @@ import {
 
 import {
   mkdtemp,
+  mkdir,
+  readdir,
   readFile,
   rm,
+  symlink,
   writeFile
 } from "node:fs/promises";
 
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import {
   FileSafetyError,
@@ -149,5 +152,78 @@ describe("HumanUML CLI File Safety", () => {
     ).rejects.toThrow(
       "Output cannot overwrite an input or vocabulary file."
     );
+  });
+
+  it("protects canonical aliases of input files", async () => {
+    const files = await fixture();
+    const alias = join(dirname(files.input), ".", basename(files.input));
+
+    await expect(
+      writeOutputSafely(
+        alias,
+        "danger",
+        true,
+        [files.input, files.vocabulary]
+      )
+    ).rejects.toThrow(
+      "Output cannot overwrite an input or vocabulary file."
+    );
+  });
+
+  it("rejects invalid UTF-8", async () => {
+    const files = await fixture();
+    await writeFile(files.input, Buffer.from([0xc3, 0x28]));
+
+    await expect(
+      readLimitedFile(files.input, 1024)
+    ).rejects.toThrow();
+  });
+
+  it("rejects symbolic-link outputs", async ({ skip }) => {
+    const files = await fixture();
+    const target = join(dirname(files.input), "target.json");
+    const link = join(dirname(files.input), "link.json");
+    await writeFile(target, "original");
+
+    try {
+      await symlink(target, link, "file");
+    } catch (error) {
+      if (process.platform === "win32") {
+        skip(`Symbolic links unavailable: ${String(error)}`);
+      }
+      throw error;
+    }
+
+    await expect(
+      writeOutputSafely(link, "replacement", true, [files.input, files.vocabulary])
+    ).rejects.toThrow("Output cannot be a symbolic link.");
+    expect(await readFile(target, "utf8")).toBe("original");
+  });
+
+  it("allows only one concurrent non-forced creator", async () => {
+    const files = await fixture();
+    const attempts = await Promise.allSettled([
+      writeOutputSafely(files.output, "one", false, [files.input, files.vocabulary]),
+      writeOutputSafely(files.output, "two", false, [files.input, files.vocabulary])
+    ]);
+
+    expect(attempts.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect(attempts.filter(result => result.status === "rejected")).toHaveLength(1);
+    expect(["one", "two"]).toContain(await readFile(files.output, "utf8"));
+  });
+
+  it("preserves a directory and leaves no temporary output after preflight failure", async () => {
+    const files = await fixture();
+    await rm(files.output, { force: true });
+    await mkdir(files.output);
+
+    await expect(
+      writeOutputSafely(files.output, "replacement", true, [files.input, files.vocabulary])
+    ).rejects.toThrow("Output must be a regular file.");
+
+    expect((await readdir(files.output))).toEqual([]);
+    expect((await readdir(dirname(files.output)))
+      .filter(name => name.includes("model.json.") && name.endsWith(".tmp")))
+      .toEqual([]);
   });
 });

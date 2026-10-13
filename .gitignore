@@ -39,3 +39,18 @@ playwright-report/
 # Cache
 .cache/
 .turbo/
+# Build artifacts
+dist/
+artifacts/
+*.tgz
+
+# Dependencies
+node_modules/
+
+# Temporary outputs
+*.tmp
+
+# Generated models
+model.json
+model-test.json
+security-test.json

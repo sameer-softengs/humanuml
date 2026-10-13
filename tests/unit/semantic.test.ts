@@ -4,20 +4,20 @@ import { describe, expect, it } from "vitest";
 import {
   tokenize,
   parse
-} from "../../packages/language-core/src/index";
+} from "../../packages/language-core/src/index.js";
 
 import {
   createVocabulary
-} from "../../packages/vocabulary/src/index";
+} from "../../packages/vocabulary/src/index.js";
 
 import {
   analyze
-} from "../../packages/semantic-core/src/index";
+} from "../../packages/semantic-core/src/index.js";
 
 import {
   buildModel,
   validateModel
-} from "../../packages/requirements-model/src/index";
+} from "../../packages/requirements-model/src/index.js";
 
 const vocabulary = createVocabulary({
   actors: ["student", "librarian", "guest"],

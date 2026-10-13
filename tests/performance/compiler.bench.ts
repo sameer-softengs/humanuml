@@ -1,255 +1,189 @@
-
 import { performance } from "node:perf_hooks";
 
-import {
-  createCompiler
-} from "../../packages/core/src/index.js";
-
-import {
-  createVocabulary
-} from "../../packages/vocabulary/src/index.js";
-
-const vocabulary = createVocabulary({
-  actors: ["student", "librarian"],
-  entities: ["book"],
-  verbs: ["borrow", "manage"],
-  plurals: {
-    books: "book"
-  },
-  verbForms: {
-    manages: "manage"
-  }
-});
+import { createCompiler } from "../../packages/core/src/index.js";
+import { createVocabulary } from "../../packages/vocabulary/src/index.js";
 
 const compiler = createCompiler();
-
-const SIZES = [100, 1_000, 10_000];
-
-const WARMUP_RUNS = 3;
+const WARMUP_RUNS = 2;
 const MEASURED_RUNS = 5;
 
-function generateRequirements(
-  count: number
-): string {
-  const sentences = [
-    "A student can borrow books.",
-    "A librarian manages books."
-  ];
+interface Workload {
+  name: string;
+  sentences: number;
+  source: string;
+  vocabulary: ReturnType<typeof createVocabulary>;
+  expectedSuccess: boolean;
+}
 
+interface Measurement {
+  durationMs: number;
+  heapDeltaMB: number;
+  rssDeltaMB: number;
+  diagnostics: number;
+  ok: boolean;
+  output: string;
+}
+
+function vocabulary() {
+  return createVocabulary({
+    actors: ["student", "librarian"],
+    entities: ["book", "shelf"],
+    verbs: ["borrow", "manage", "store"],
+    plurals: { books: "book", shelves: "shelf" },
+    verbForms: { borrows: "borrow", manages: "manage", stores: "store" }
+  });
+}
+
+function repeatSentences(count: number, sentences: string[]): string {
   return Array.from(
     { length: count },
-    (_, index) => sentences[index % sentences.length]
+    (_, index) => sentences[index % sentences.length]!
   ).join("\n");
 }
 
-type CompileResult = ReturnType<
-  typeof compiler.compile
->;
-
-interface RunMeasurement {
-  durationMs: number;
-  heapDeltaMB: number;
-  result: CompileResult;
-}
-
-function measureCompilation(
-  source: string
-): RunMeasurement {
-  const memoryBefore =
-    process.memoryUsage().heapUsed;
-
-  const start = performance.now();
-
-  const result = compiler.compile(source, {
-  vocabulary,
-  strict: true,
-  grammarVersion: "CE-1",
-  maxSourceLength: 500_000
-});
-
-  const durationMs =
-    performance.now() - start;
-
-  const memoryAfter =
-    process.memoryUsage().heapUsed;
+function largeVocabularyWorkload(): Workload {
+  const actors = Array.from({ length: 500 }, (_, i) => `actor${i}`);
+  const entities = Array.from({ length: 500 }, (_, i) => `entity${i}`);
+  const verbs = Array.from({ length: 500 }, (_, i) => `verb${i}`);
 
   return {
-    durationMs,
-    heapDeltaMB:
-      (memoryAfter - memoryBefore) /
-      (1024 * 1024),
-    result
+    name: "large-vocabulary",
+    sentences: 100,
+    source: repeatSentences(100, [
+      "A actor499 can verb499 entity499.",
+      "A actor1 must verb1 entity1."
+    ]),
+    vocabulary: createVocabulary({ actors, entities, verbs }),
+    expectedSuccess: true
   };
+}
+
+function workloads(): Workload[] {
+  const base = vocabulary();
+  const validSentences = [
+    "A student can borrow books.",
+    "A librarian manages books.",
+    "A student must store a book.",
+    "A librarian cannot borrow a book.",
+    "A book belongs to a shelf.",
+    "A shelf contains a book."
+  ];
+
+  return [
+    ...[100, 1_000, 10_000].map(sentences => ({
+      name: `duplicate-heavy-${sentences}`,
+      sentences,
+      source: repeatSentences(sentences, validSentences.slice(0, 2)),
+      vocabulary: base,
+      expectedSuccess: true
+    })),
+    {
+      name: "diverse-valid",
+      sentences: 1_000,
+      source: repeatSentences(1_000, validSentences),
+      vocabulary: base,
+      expectedSuccess: true
+    },
+    {
+      name: "malformed-controlled-english",
+      sentences: 1_000,
+      source: repeatSentences(1_000, [
+        "A student can unknown books.",
+        "A student can borrow books"
+      ]),
+      vocabulary: base,
+      expectedSuccess: false
+    },
+    {
+      name: "mixed-valid-invalid",
+      sentences: 1_000,
+      source: repeatSentences(1_000, [
+        "A student can borrow books.",
+        "A unknown can borrow books.",
+        "A librarian manages books."
+      ]),
+      vocabulary: base,
+      expectedSuccess: false
+    },
+    largeVocabularyWorkload()
+  ];
 }
 
 function median(values: number[]): number {
-  const sorted = [...values].sort(
-    (a, b) => a - b
-  );
-
-  const middle = Math.floor(
-    sorted.length / 2
-  );
-
-  if (sorted.length % 2 === 0) {
-    return (
-      sorted[middle - 1]! +
-      sorted[middle]!
-    ) / 2;
-  }
-
-  return sorted[middle]!;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1]! + sorted[middle]!) / 2
+    : sorted[middle]!;
 }
 
-function round(
-  value: number
-): number {
+function round(value: number): number {
   return Number(value.toFixed(2));
 }
 
-function benchmark(size: number) {
-  const source = generateRequirements(size);
-
-  console.log(
-    `\nBenchmarking ${size.toLocaleString()} sentences...`
-  );
-
-  // Warm up the compiler and JavaScript runtime.
-  for (let i = 0; i < WARMUP_RUNS; i++) {
-    const warmup = measureCompilation(source);
-
-    if (!warmup.result.ok) {
-      console.error(
-        `\nCompilation rejected ${size} sentences.`
-      );
-
-      console.dir(
-        warmup.result.diagnostics,
-        { depth: null }
-      );
-
-      return {
-        sentences: size,
-        successful: false,
-        medianMs: null,
-        sentencesPerSecond: null,
-        medianHeapDeltaMB: null,
-        actions: warmup.result.model?.actions.length ?? 0,
-        diagnostics: warmup.result.diagnostics.length
-      };
-    }
-  }
-
-  const measurements: RunMeasurement[] = [];
-
-  for (let i = 0; i < MEASURED_RUNS; i++) {
-    const measurement =
-      measureCompilation(source);
-
-    if (!measurement.result.ok) {
-      console.error(
-        `\nMeasured run ${i + 1} failed ` +
-        `for ${size} sentences.`
-      );
-
-      console.dir(
-        measurement.result.diagnostics,
-        { depth: null }
-      );
-
-      return {
-        sentences: size,
-        successful: false,
-        medianMs: null,
-        sentencesPerSecond: null,
-        medianHeapDeltaMB: null,
-        actions: measurement.result.model?.actions.length ?? 0,
-        diagnostics:
-          measurement.result.diagnostics.length
-      };
-    }
-
-    measurements.push(measurement);
-  }
-
-  const medianMs = median(
-    measurements.map(
-      measurement => measurement.durationMs
-    )
-  );
-
-  const medianHeapDeltaMB = median(
-    measurements.map(
-      measurement => measurement.heapDeltaMB
-    )
-  );
-
-  const lastResult =
-    measurements[measurements.length - 1]!.result;
+function measure(workload: Workload): Measurement {
+  const before = process.memoryUsage();
+  const start = performance.now();
+  const result = compiler.compile(workload.source, {
+    vocabulary: workload.vocabulary,
+    strict: true,
+    grammarVersion: "CE-1",
+    maxSourceLength: 500_000
+  });
+  const durationMs = performance.now() - start;
+  const after = process.memoryUsage();
 
   return {
-    sentences: size,
-    successful: true,
-    medianMs: round(medianMs),
-    sentencesPerSecond:
-      medianMs > 0
-        ? Math.round(
-            size / (medianMs / 1000)
-          )
-        : null,
-    medianHeapDeltaMB: round(
-      medianHeapDeltaMB
-    ),
-    actions: lastResult.model?.actions.length ?? 0,
-    diagnostics: lastResult.diagnostics.length
+    durationMs,
+    heapDeltaMB: (after.heapUsed - before.heapUsed) / (1024 * 1024),
+    rssDeltaMB: (after.rss - before.rss) / (1024 * 1024),
+    diagnostics: result.diagnostics.length,
+    ok: result.ok,
+    output: JSON.stringify({ model: result.model, diagnostics: result.diagnostics })
   };
 }
 
-function main(): void {
-  console.log(
-    "\nHumanUML — P1-08D Performance Benchmark"
+function run(workload: Workload) {
+  for (let i = 0; i < WARMUP_RUNS; i++) measure(workload);
+
+  const measurements = Array.from(
+    { length: MEASURED_RUNS },
+    () => measure(workload)
   );
-
-  console.log(
-    `Node.js: ${process.version}`
+  const first = measurements[0]!;
+  const deterministic = measurements.every(
+    measurement => measurement.output === first.output
   );
-
-  console.log(
-    `Platform: ${process.platform} (${process.arch})`
+  const successful = measurements.every(
+    measurement => measurement.ok === workload.expectedSuccess
   );
+  const medianMs = median(measurements.map(m => m.durationMs));
 
-  console.log(
-    `Warmups: ${WARMUP_RUNS} | Measured runs: ${MEASURED_RUNS}`
-  );
-
-  const results = SIZES.map(benchmark);
-
-  console.log(
-    "\nPerformance Results:"
-  );
-
-  console.table(results);
-
-  const rejected = results.filter(
-    result => !result.successful
-  );
-
-  if (rejected.length > 0) {
-    console.warn(
-      "\nSome workloads were rejected. " +
-      "Review the compiler diagnostics above."
-    );
-
-    process.exitCode = 1;
-  } else {
-    console.log(
-      "\nAll benchmark workloads compiled successfully."
-    );
-  }
-
-  console.log(
-    "\nNote: Heap deltas are not peak memory measurements."
-  );
+  return {
+    workload: workload.name,
+    sentences: workload.sentences,
+    successful,
+    deterministic,
+    medianMs: round(medianMs),
+    throughputPerSecond: workload.expectedSuccess && medianMs > 0
+      ? Math.round(workload.sentences / (medianMs / 1000))
+      : null,
+    medianHeapDeltaMB: round(median(measurements.map(m => m.heapDeltaMB))),
+    medianRssDeltaMB: round(median(measurements.map(m => m.rssDeltaMB))),
+    diagnostics: first.diagnostics
+  };
 }
 
-main();
+console.log("HumanUML compiler benchmark");
+console.log(`Node.js: ${process.version}`);
+console.log(`Platform: ${process.platform} (${process.arch})`);
+console.log(`Warmups: ${WARMUP_RUNS}; measured runs: ${MEASURED_RUNS}`);
+const results = workloads().map(run);
+console.table(results);
+
+if (results.some(result => !result.successful || !result.deterministic)) {
+  console.error("Benchmark workload verification failed.");
+  process.exitCode = 1;
+}
+
+console.log("Memory values are per-run deltas, not peak measurements.");
