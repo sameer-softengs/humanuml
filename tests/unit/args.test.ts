@@ -26,4 +26,28 @@ describe("CLI arguments", () => {
       ])
     ).toThrow(/Duplicate option/);
   });
+
+  it("parses use case generation options", () => {
+    expect(parseArgs([
+      "generate", "usecase", "requirements.txt",
+      "--format", "json", "--system", "Library", "--force"
+    ])).toEqual({
+      kind: "generate-usecase",
+      options: {
+        input: "requirements.txt",
+        output: "usecase.svg",
+        vocabulary: "examples/library-vocabulary.json",
+        strict: true,
+        force: true,
+        format: "json",
+        systemName: "Library"
+      }
+    });
+  });
+
+  it("rejects partial generation", () => {
+    expect(() => parseArgs([
+      "generate", "usecase", "requirements.txt", "--partial"
+    ])).toThrow(/not supported/);
+  });
 });

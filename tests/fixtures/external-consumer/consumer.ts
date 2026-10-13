@@ -2,6 +2,7 @@ import {
   createCompiler,
   createVocabulary
 } from "@humanuml/core";
+import { createUmlGenerator } from "@humanuml/uml-core";
 
 const vocabulary = createVocabulary({
   actors: ["student"],
@@ -19,3 +20,12 @@ if (!result.ok || !result.model || result.model.actions.length !== 1) {
 }
 
 console.log(result.model.actions[0]?.verb);
+
+const diagram = createUmlGenerator().generateUseCase(result.model, {
+  systemName: "Library",
+  format: "svg"
+});
+
+if (!diagram.ok || !diagram.svg?.startsWith("<svg")) {
+  throw new Error("Unexpected UML generation result.");
+}

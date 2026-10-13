@@ -37,5 +37,24 @@ export default defineConfig([
     outExtension: () => ({
       js: ".mjs"
     })
+  },
+  {
+    name: "humanuml-uml-core",
+    entry: {
+      index: "packages/uml-core/src/index.ts"
+    },
+    outDir: "packages/uml-core/dist",
+    format: ["esm"],
+    platform: "neutral",
+    target: "es2022",
+    bundle: true,
+    dts: true,
+    sourcemap: true,
+    clean: true,
+    splitting: false,
+    external: [],
+    outExtension: () => ({
+      js: ".mjs"
+    })
   }
 ]);

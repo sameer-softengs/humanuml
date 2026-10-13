@@ -6,3 +6,5 @@ humanuml compile <requirements-file> [--output <file>] [--vocabulary <file>]
 ```
 
 Defaults are `model.json`, `examples/library-vocabulary.json`, and strict mode. Requirements are limited to 5 MiB and vocabulary JSON to 1 MiB. Inputs must be regular UTF-8 files. Output refuses overwrite by default, rejects symbolic links, and uses a temporary file for forced replacement. Full race-free filesystem security cannot be guaranteed on every platform; see [security.md](security.md).
+
+Use Case diagrams are generated with `humanuml generate usecase <file>`. SVG is the default; `--format json` exports the validated DIR. Diagram generation requires strict compilation and rejects `--partial`.

@@ -37,6 +37,8 @@ importers:
 
   packages/core: {}
 
+  packages/uml-core: {}
+
   packages/vocabulary: {}
 
 packages:

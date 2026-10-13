@@ -27,3 +27,4 @@ jobs:
       - run: mkdir -p artifacts
       - run: pnpm --filter @humanuml/core pack --pack-destination artifacts
       - run: pnpm --filter @humanuml/cli pack --pack-destination artifacts
+      - run: pnpm --filter @humanuml/uml-core pack --pack-destination artifacts

@@ -7,9 +7,20 @@ export interface CliOptions {
   force: boolean;
 }
 
+export interface GenerateUseCaseOptions {
+  input: string;
+  output: string;
+  vocabulary: string;
+  strict: boolean;
+  force: boolean;
+  format: "svg" | "json";
+  systemName?: string;
+}
+
 export type CliArgs =
   | { kind: "help" }
-  | { kind: "compile"; options: CliOptions };
+  | { kind: "compile"; options: CliOptions }
+  | { kind: "generate-usecase"; options: GenerateUseCaseOptions };
 
 export function parseArgs(args: string[]): CliArgs {
   if (
@@ -20,13 +31,20 @@ export function parseArgs(args: string[]): CliArgs {
     return { kind: "help" };
   }
 
-  if (args[0] !== "compile") {
+  if (args[0] !== "compile" && args[0] !== "generate") {
     throw new Error(
       `Unknown command: ${args[0]}`
     );
   }
 
-  const input = args[1];
+  const generateUseCase = args[0] === "generate";
+  if (generateUseCase && args[1] !== "usecase") {
+    throw new Error(
+      `Unknown diagram type: ${args[1] ?? ""}`
+    );
+  }
+
+  const input = args[generateUseCase ? 2 : 1];
 
   if (!input || input.startsWith("-")) {
     throw new Error(
@@ -36,15 +54,16 @@ export function parseArgs(args: string[]): CliArgs {
 
   const options: CliOptions = {
     input,
-    output: "model.json",
+    output: generateUseCase ? "usecase.svg" : "model.json",
     vocabulary: "examples/library-vocabulary.json",
     strict: true,
-    force: false
+    force: false,
+    ...(generateUseCase ? { format: "svg" as const } : {})
   };
 
   const seen = new Set<string>();
 
-  for (let i = 2; i < args.length; i++) {
+  for (let i = generateUseCase ? 3 : 2; i < args.length; i++) {
     const arg = args[i]!;
 
     if (seen.has(arg)) {
@@ -96,8 +115,34 @@ export function parseArgs(args: string[]): CliArgs {
       continue;
     }
 
+    if (generateUseCase && arg === "--format") {
+      const value = args[++i];
+      if (value !== "svg" && value !== "json") {
+        throw new Error("--format must be svg or json.");
+      }
+      (options as GenerateUseCaseOptions).format = value;
+      continue;
+    }
+
+    if (generateUseCase && arg === "--system") {
+      const value = args[++i];
+      if (!value || value.startsWith("--")) {
+        throw new Error("Missing value for --system.");
+      }
+      (options as GenerateUseCaseOptions).systemName = value;
+      continue;
+    }
+
     throw new Error(`Unknown option: ${arg}`);
   }
 
-  return { kind: "compile", options };
+  if (generateUseCase && !options.strict) {
+    throw new Error(
+      "--partial is not supported for diagram generation."
+    );
+  }
+
+  return generateUseCase
+    ? { kind: "generate-usecase", options: options as GenerateUseCaseOptions }
+    : { kind: "compile", options: options as CliOptions };
 }

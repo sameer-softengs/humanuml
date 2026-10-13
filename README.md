@@ -2,7 +2,7 @@
 
 HumanUML is a deterministic, local-first compiler for a small Controlled English grammar. It transforms requirements into a validated Human Requirements Model (HRM), preserving source evidence for every generated record.
 
-Version 0.1.0 covers the Controlled English → lexer → parser → semantic analysis → HRM pipeline. Full UML diagram generation is future work and is not part of the verified release feature set.
+Version 0.1.0 provides the Controlled English → lexer → parser → semantic analysis → HRM pipeline. Version 0.2.0 adds deterministic Use Case Diagram generation; other UML diagram types remain future work.
 
 ## Quick start
 
@@ -31,3 +31,14 @@ const result = createCompiler().compile(
 ```
 
 See [docs/development.md](docs/development.md) for validation, packaging, and contribution commands.
+
+## Use Case diagrams (v0.2.0)
+
+```powershell
+node apps/cli/dist/index.mjs generate usecase examples/library-system.txt `
+  --vocabulary examples/library-vocabulary.json `
+  --system "Library Management System" `
+  --output usecase.svg
+```
+
+Use Case generation is deterministic and traceable to HRM evidence. Only Use Case Diagrams are implemented; see [docs/uml/limitations.md](docs/uml/limitations.md).

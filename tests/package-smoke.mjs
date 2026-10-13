@@ -3,6 +3,8 @@ import {
   createVocabulary
 } from "../packages/core/dist/index.mjs";
 
+import { createUmlGenerator } from "../packages/uml-core/dist/index.mjs";
+
 const vocabulary = createVocabulary({
   actors: ["student"],
   entities: ["book"],
@@ -18,4 +20,13 @@ if (!result.ok || !result.model || result.model.actions.length !== 1) {
   throw new Error("Core package smoke compilation failed.");
 }
 
-console.log("Core package smoke test passed.");
+const diagram = createUmlGenerator().generateUseCase(result.model, {
+  systemName: "Library",
+  format: "svg"
+});
+
+if (!diagram.ok || !diagram.svg?.startsWith("<svg")) {
+  throw new Error("UML package smoke generation failed.");
+}
+
+console.log("Core and UML package smoke tests passed.");

@@ -16,14 +16,18 @@ import {
   createVocabulary
 } from "../../../packages/vocabulary/src/index.js";
 
+import {
+  createUmlGenerator
+} from "../../../packages/uml-core/src/index.js";
+
 import type {
   VocabularyConfig
 } from "../../../packages/vocabulary/src/types.js";
 
-import { parseArgs } from "./args.js";
+import { parseArgs, type GenerateUseCaseOptions } from "./args.js";
 
 const HELP = `
-HumanUML CLI v0.1.0
+HumanUML CLI v0.2.0
 
 Usage:
   humanuml compile <file> [options]
@@ -45,6 +49,10 @@ Examples:
   humanuml compile requirements.txt --output model.json
   humanuml compile requirements.txt --output model.json --force
   humanuml compile requirements.txt --partial
+
+  humanuml generate usecase requirements.txt --output usecase.svg \\
+    --vocabulary vocabulary.json --system "Library Management System"
+  humanuml generate usecase requirements.txt --format json --output usecase.json
 `;
 
 function isVocabularyConfig(
@@ -121,6 +129,7 @@ export async function runCli(
     }
 
     const options = command.options;
+    const isDiagram = command.kind === "generate-usecase";
 
     // ----------------------------------------
     // 2. Resolve file paths
@@ -207,6 +216,53 @@ export async function runCli(
         diagnostic.message;
 
       console.error(message);
+    }
+
+    if (isDiagram) {
+      const diagramOptions = options as GenerateUseCaseOptions;
+      if (!result.ok || !result.model) {
+        console.error("Diagram generation stopped because requirements did not compile successfully.");
+        return 1;
+      }
+
+      const generated = createUmlGenerator().generateUseCase(
+        result.model,
+        {
+          format: diagramOptions.format,
+          ...(diagramOptions.systemName ? { systemName: diagramOptions.systemName } : {})
+        }
+      );
+
+      for (const diagnostic of generated.diagnostics) {
+        const location = diagnostic.span
+          ? ` [${diagnostic.span.start}:${diagnostic.span.end}]`
+          : "";
+        console.error(
+          `${diagnostic.severity.toUpperCase()} ${diagnostic.code}${location}: ${diagnostic.message}`
+        );
+      }
+
+      if (!generated.ok) {
+        console.error("Diagram generation completed with errors.");
+        return 1;
+      }
+
+      const content = diagramOptions.format === "json"
+        ? generated.json
+        : generated.svg;
+      if (content === undefined) {
+        console.error("Diagram generation produced no output.");
+        return 2;
+      }
+
+      await writeOutputSafely(
+        outputPath,
+        content,
+        options.force,
+        [inputPath, vocabularyPath]
+      );
+      console.log(`HumanUML diagram saved: ${outputPath}`);
+      return 0;
     }
 
     // ----------------------------------------

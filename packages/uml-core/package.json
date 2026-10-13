@@ -1,0 +1,17 @@
+{
+  "name": "@humanuml/uml-core",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Deterministic UML Use Case generation for HumanUML",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "files": ["dist"],
+  "engines": { "node": ">=24" },
+  "license": "UNLICENSED"
+}
